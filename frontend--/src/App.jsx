@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Globe from 'react-globe.gl'
 
 const INDIA_HUB = { lat: 20.5937, lng: 78.9629, city: 'INDIA HUB', name: 'INDIA-HUB', ip: 'INDIA-MAIN' }
-
+const API_URL = import.meta.env.VITE_API_URL || "https://sentinelmesh-tbiv.onrender.com"
 export default function App(){
   const [threats, setThreats] = useState([])
   const [soundOn, setSoundon] = useState(true)
@@ -23,9 +23,35 @@ export default function App(){
     o.stop(ctx.currentTime+0.4)
   }
 
+    const API_URL = import.meta.env.VITE_API_URL || "https://sentinelmesh-tbiv.onrender.com"
   useEffect(()=>{
     const fetchLive = () => {
-      fetch('http://localhost:5000/api/threats')
+      fetch(`${API_URL}/api/threats`)
+       .then(r=>r.json())
+       .then(data=>{
+          const list = Array.isArray(data)? data : data.threats || []
+          setThreats(list)
+          const newBlocked = list.filter(t=>t.action==='BLOCKED').length
+          if(newBlocked > prevBlocked.current){
+            playSound()
+          }
+          if(voice && data[0]){
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${data[0].name} attacking India Hub from ${data[0].city}`))
+          }
+          prevBlocked.current = newBlocked
+        }).catch(e=>console.log(e))
+    }
+    fetchLive()
+    const id = setInterval(fetchLive, 2000)
+    return ()=> clearInterval(id)
+  }, [voice])
+          prevBlocked.current = newBlocked
+        }).catch(e=>console.log(e))
+    }
+    fetchLive()
+    const id = setInterval(fetchLive, 2000)
+    return ()=> clearInterval(id)
+  }, [voice])
        .then(r=>r.json())
        .then(data=>{
           setThreats(data)
