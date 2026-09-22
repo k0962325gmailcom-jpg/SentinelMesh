@@ -31,7 +31,8 @@ export default function App(){
        .then(data=>{
           const list = Array.isArray(data)? data : data.threats || []
           setThreats(list)
-          const newBlocked = list.filter(t=>t.action==='BLOCKED').length
+          const newBlocked = list.filter(t=> (t.action && t.action.includes('BLOCK')) || t.blockedAt).length
+const newMonitored = list.length - newBlocked
           if(newBlocked > prevBlocked.current){
             playSound()
           }
@@ -84,8 +85,8 @@ export default function App(){
     startLng: t.lng,
     endLat: INDIA_HUB.lat,
     endLng: INDIA_HUB.lng,
-    color: t.action==='BLOCKED'? ['red','orange'] : ['green','cyan'],
-    status: t.action
+      color: (t.action?.includes('BLOCK') || t.blockedAt) ? ['red','orange'] : ['green','cyan'],
+  status: t.action || (t.blockedAt ? 'BLOCKED' : 'MONITORED')
   }))
 
   // Points = India Hub + threats
