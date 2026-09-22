@@ -1,0 +1,38 @@
+// index.js - API Gateway - Main Server for SentinelMesh
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import { startWatching } from './watcher.js';
+import { blockedIPs } from './blocker.js';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
+
+let threatlogs = [];
+
+// Socket Connection for your Globe
+io.on('connection', (socket) => {
+  console.log('Globe connected');
+  socket.emit('initial-threats', threatlogs);
+});
+
+app.get('/blocked', (req, res) => {
+  res.json({ blocked: [...blockedIPs], count: blockedIPs.size });
+});
+
+app.get('/', (req, res) => {
+  res.send('SentinelMesh India Hub API - SECURED ✅');
+});
+
+const PORT = 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 API Gateway running on http://localhost:${PORT}`);
+  startWatching(io);
+});

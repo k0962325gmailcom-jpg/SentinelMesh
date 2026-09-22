@@ -1,107 +1,137 @@
-import { useState, useEffect } from 'react'
-import { db } from './firebase.js'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth'
 
-const LEVELS = [
-  { level: 1, title: "Beginner", minXp: 0, maxXp: 99 },
-  { level: 2, title: "Warrior", minXp: 100, maxXp: 249 },
-  { level: 3, title: "Knight", minXp: 250, maxXp: 449 },
-  { level: 4, title: "Master", minXp: 450, maxXp: 699 },
-  { level: 5, title: "Champion", minXp: 700, maxXp: 999 },
-  { level: 6, title: "Legend", minXp: 1000, maxXp: 1499 },
-  { level: 7, title: "Mythic", minXp: 1500, maxXp: 2099 },
-  { level: 8, title: "Immortal", minXp: 2100, maxXp: 2799 },
-  { level: 9, title: "Titan", minXp: 2800, maxXp: 3599 },
-  { level: 10, title: "GOD", minXp: 3600, maxXp: 999999 },
-]
+import { useState, useEffect, useRef } from 'react'
+import Globe from 'react-globe.gl'
 
-function App() {
-  const [user, setUser] = useState(null)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [xp, setXp] = useState(0)
-  const [isLogin, setIsLogin] = useState(true)
-  const auth = getAuth()
+const INDIA_HUB = { lat: 20.5937, lng: 78.9629, city: 'INDIA HUB', name: 'INDIA-HUB', ip: 'INDIA-MAIN' }
 
-  const getLevelInfo = (totalXp) => {
-    let current = LEVELS[0]
-    for (let l of LEVELS) {
-      if (totalXp >= l.minXp && totalXp <= l.maxXp) { current = l; break }
-      if (totalXp >= l.minXp) current = l
+export default function App(){
+  const [threats, setThreats] = useState([])
+  const [soundOn, setSoundon] = useState(true)
+  const [voice, setVoice] = useState(true)
+  const globeRef = useRef()
+  const prevBlocked = useRef(0)
+
+  const blocked = threats.filter(t=>t.action==='BLOCKED').length
+
+  const playSound = () => {
+    if(!soundOn) return
+    const ctx = new (window.AudioContext||window.webkitAudioContext)()
+    const o = ctx.createOscillator()
+    o.connect(ctx.destination)
+    o.frequency.value = 900
+    o.start()
+    o.stop(ctx.currentTime+0.4)
+  }
+
+  useEffect(()=>{
+    const fetchLive = () => {
+      fetch('http://localhost:5000/api/threats')
+       .then(r=>r.json())
+       .then(data=>{
+          setThreats(data)
+          const newBlocked = data.filter(t=>t.action==='BLOCKED').length
+          if(newBlocked > prevBlocked.current){
+            playSound()
+            if(voice && data[0]){
+              window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${data[0].name} attacking India Hub from ${data[0].city}`))
+            }
+          }
+          prevBlocked.current = newBlocked
+        })
     }
-    const isMax = current.level === 10
-    const xpInLevel = totalXp - current.minXp
-    const xpNeeded = current.maxXp - current.minXp + 1
-    const progress = isMax? 100 : (xpInLevel / xpNeeded) * 100
-    return {...current, xpInLevel, xpNeeded, progress, isMax, totalXp }
-  }
-  const info = getLevelInfo(xp)
+    fetchLive()
+    const interval = setInterval(fetchLive, 2000)
+    return ()=>clearInterval(interval)
+  },[soundOn, voice])
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u)
-      if (u) {
-        try {
-          const snap = await getDoc(doc(db, "users", u.uid))
-          if (snap.exists()) setXp(snap.data().xp)
-          else setXp(0)
-        } catch { setXp(0) }
-      }
-    })
-    return () => unsub()
-  }, [])
-
-  const handleAuth = async () => {
-    try {
-      if (isLogin) await signInWithEmailAndPassword(auth, email, password)
-      else await createUserWithEmailAndPassword(auth, email, password)
-    } catch (e) { alert(e.message) }
-  }
-
-  const completeQuest = async (points) => {
-    const newXp = Math.min(xp + points, 3600)
-    setXp(newXp)
-    if (user) {
-      await setDoc(doc(db, "users", user.uid), { xp: newXp, email: user.email })
+  useEffect(()=>{
+    if(globeRef.current){
+      globeRef.current.controls().autoRotate = true
+      globeRef.current.controls().autoRotateSpeed = 0.4
+      globeRef.current.pointOfView({lat: 20.59, lng: 78.96, altitude: 2.0}) // Focus on INDIA
     }
-  }
+  },[])
 
-  // LOGIN SCREEN - BaaS Auth
-  if (!user) {
-    return (
-      <div style={{ background: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-        <div style={{ background: "#1e293b", padding: "30px", borderRadius: "15px", width: "300px", textAlign: "center" }}>
-          <h2>⚔️ LIFE RPG ⚔️</h2>
-          <p>{isLogin? "Login" : "Register"} with BaaS</p>
-          <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={{ width: "100%", padding: "10px", margin: "8px 0", borderRadius: "8px", border: "none" }} />
-          <input placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{ width: "100%", padding: "10px", margin: "8px 0", borderRadius: "8px", border: "none" }} />
-          <button onClick={handleAuth} style={{ width: "100%", padding: "10px", background: "#3b82f6", border: "none", borderRadius: "8px", color: "white", cursor: "pointer", marginTop: "10px", fontWeight: "bold" }}>{isLogin? "Login" : "Create Account"}</button>
-          <p onClick={()=>setIsLogin(!isLogin)} style={{ fontSize: "12px", cursor: "pointer", color: "#94a3b8", marginTop: "15px" }}>{isLogin? "No account? Register" : "Have account? Login"}</p>
+  // Arcs from threats TO INDIA HUB
+  const arcsData = threats.map(t=>({
+    startLat: t.lat,
+    startLng: t.lng,
+    endLat: INDIA_HUB.lat,
+    endLng: INDIA_HUB.lng,
+    color: t.action==='BLOCKED'? ['red','orange'] : ['green','cyan'],
+    status: t.action
+  }))
+
+  // Points = India Hub + threats
+  const allPoints = [
+    {...INDIA_HUB, action:'HUB', type:'INDIA HUB', color:'gold', size:1.5 },
+   ...threats
+  ]
+
+  return(
+    <div style={{background:'#020617',color:'white',minHeight:'100vh',padding:10,fontFamily:'monospace'}}>
+      <h2 style={{margin:5}}>🛡️ SentinelMesh - INDIA HUB LIVE 🇮🇳 {new Date().toLocaleTimeString()}</h2>
+      <div style={{display:'flex',gap:10,height:'85vh'}}>
+        {/* LEFT */}
+        <div style={{width:240,background:'#0f172a',border:'2px solid gold',borderRadius:10,padding:10}}>
+          <h3 style={{color:'gold'}}>📊 Stats + Location:</h3>
+          <p>Blocked: <b style={{color:'#ff0000',fontSize:28}}>{blocked}</b></p>
+          <p>Monitored: {threats.length-blocked}</p>
+          <p style={{fontSize:12, color:'#fbbf24'}}>📍 HUB: INDIA (20.59, 78.96)</p>
+          <p style={{fontSize:11}}>Backend: ✅ LIVE India Hub</p>
+          <button onClick={()=>setSoundon(!soundOn)} style={{width:'100%',padding:8,margin:'4px 0',background:soundOn?'#0f0':'#333',border:'none',borderRadius:5}}>🔊 Sound: {soundOn?'ON':'OFF'}</button>
+          <button onClick={()=>setVoice(!voice)} style={{width:'100%',padding:8,background:voice?'#0af':'#333',border:'none',borderRadius:5}}>🎤 Voice: {voice?'ON':'OFF'}</button>
+          <div style={{marginTop:10,background:'#000',padding:8,borderRadius:5,fontSize:11}}>
+            <div>🇮🇳 India Hub: SAVED ✅</div><div>🌍 Globe: ✅</div><div>🔴 Arcs to India: ✅</div><div>🦠 Live: 2s</div>
+          </div>
         </div>
-      </div>
-    )
-  }
 
-  // GAME SCREEN
-  return (
-    <div style={{ background: "#0f172a", minHeight: "100vh", color: "white", padding: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3>👋 {user.email}</h3>
-        <button onClick={()=>signOut(auth)} style={{ background: "#ef4444", border: "none", padding: "6px 12px", borderRadius: "6px", color: "white", cursor: "pointer" }}>Logout</button>
-      </div>
-      <h1 style={{ textAlign: "center" }}>⚔️ LIFE RPG ⚔️</h1>
-      <div style={{ background: "#1e293b", padding: "15px", borderRadius: "12px", textAlign: "center" }}>
-        <h2>Level {info.level}/10 - {info.title} {info.isMax && "👑 MAX!"}</h2>
-        <p>{info.totalXp}/3600 XP</p>
-        {!info.isMax && <><div style={{ background: "#334155", height: "20px", borderRadius: "10px" }}><div style={{ background: "#22c55e", width: `${info.progress}%`, height: "20px", borderRadius: "10px" }}></div></div><p>{Math.round(info.progress)}% to next level</p></>}
-      </div>
-      <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <div style={{ background: "#1e3a8a", padding: "12px", borderRadius: "8px", display: "flex", justifyContent: "space-between" }}><span>Workout +25</span><button onClick={() => completeQuest(25)} style={{ background: "#22c55e", border: "none", padding: "5px 12px", borderRadius: "5px", color: "white" }}>Done</button></div>
-        <div style={{ background: "#1e3a8a", padding: "12px", borderRadius: "8px", display: "flex", justifyContent: "space-between" }}><span>Code +30</span><button onClick={() => completeQuest(30)} style={{ background: "#22c55e", border: "none", padding: "5px 12px", borderRadius: "5px", color: "white" }}>Done</button></div>
-        <div style={{ background: "#1e3a8a", padding: "12px", borderRadius: "8px", display: "flex", justifyContent: "space-between" }}><span>Read +20</span><button onClick={() => completeQuest(20)} style={{ background: "#22c55e", border: "none", padding: "5px 12px", borderRadius: "5px", color: "white" }}>Done</button></div>
+        {/* CENTER - GLOBE WITH INDIA HUB */}
+        <div style={{flex:1,background:'#000',borderRadius:10,overflow:'hidden',border:'2px solid gold'}}>
+          <Globe
+            ref={globeRef}
+            width={680}
+            height={520}
+            backgroundColor="rgba(0,0,0,0)"
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+            pointsData={allPoints}
+            pointLat="lat"
+            pointLng="lng"
+            pointColor={d=> d.action==='HUB'? 'gold' : d.action==='BLOCKED'? 'red' : '#00ff00'}
+            pointAltitude={d=> d.action==='HUB'? 0.4 : d.action==='BLOCKED'? 0.25 : 0.05}
+            pointRadius={d=> d.action==='HUB'? 0.8 : d.action==='BLOCKED'? 0.6 : 0.3}
+            pointLabel={d=>`<div style="background:#000;padding:6px;border-radius:4px;border:1px solid gold"><b>${d.name}</b><br/>${d.city||d.type}<br/>${d.ip}<br/>${d.action}</div>`}
+
+            arcsData={arcsData}
+            arcStartLat={d=>d.startLat}
+            arcStartLng={d=>d.startLng}
+            arcEndLat={d=>d.endLat}
+            arcEndLng={d=>d.endLng}
+            arcColor={d=>d.color}
+            arcDashLength={0.4}
+            arcDashGap={0.2}
+            arcDashAnimateTime={2000}
+            arcStroke={d=>d.status==='BLOCKED'?1:0.5}
+            onPointClick={d=>{ playSound(); }}
+          />
+        </div>
+
+        {/* RIGHT */}
+        <div style={{width:280,background:'#0f172a',borderRadius:10,padding:10,overflowY:'auto'}}>
+          <h4>🇮🇳 India Hub - Live Attacks</h4>
+          <div style={{background:'rgba(255,215,0,0.1)',border:'1px solid gold',padding:6,borderRadius:4,marginBottom:8,fontSize:11}}>
+            <b style={{color:'gold'}}>⬤ INDIA HUB</b><br/>20.59N, 78.96E<br/>All threats routed here
+          </div>
+          {threats.map((t,i)=>(
+            <div key={i} style={{background: i===0?'#450a0a':'#1e293b',margin:'6px 0',padding:8,borderLeft:`4px solid ${t.action==='BLOCKED'?'red':'#0f0'}`,borderRadius:4}}>
+              <div style={{fontWeight:'bold',fontSize:12}}>{i===0?'🆕 ':''}{t.name} → INDIA</div>
+              <div style={{color:'cyan',fontSize:11}}>{t.detectionType}</div>
+              <div style={{fontSize:10}}>📍 {t.city} → 🇮🇳 Hub</div>
+              <div style={{fontSize:10}}>{t.ip} | {t.time}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
 }
-export default App
