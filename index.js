@@ -97,8 +97,11 @@ function generateLiveThreat() {
 }
 
 // New threat every 2.5 seconds
+// Pre-fill 10 threats instantly for deployed version
+for(let i=0; i<10; i++) {
+  generateLiveThreat();
+}
 setInterval(generateLiveThreat, 2500);
-
 // ================== API ROUTES ==================
 app.get("/", (req, res) => {
   res.send("✅ SentinelMesh INDIA HUB Backend Running - Use /api/threats");
@@ -143,7 +146,7 @@ app.get("/api/stats", (req, res) => {
 });
 
 // ================== START SERVER ==================
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`\n✅ INDIA HUB LIVE Backend Running on http://localhost:${PORT}`);
   console.log(`🇮🇳 Hub Location: ${INDIA_HUB.lat}, ${INDIA_HUB.lng} - ${INDIA_HUB.city}`);
