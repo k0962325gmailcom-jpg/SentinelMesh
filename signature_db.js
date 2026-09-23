@@ -1,14 +1,21 @@
 export const signatures = [
-  { name: 'Mimikatz', pattern: 'mimikatz', score: 0.99, action: 'BLOCKED' },
-  { name: 'EICAR', pattern: 'eicar', score: 0.99, action: 'BLOCKED' },
-  { name: 'XMRig', pattern: 'xmrig', score: 0.95, action: 'BLOCKED' },
-  { name: 'Malware', pattern: 'malware', score: 0.90, action: 'BLOCKED' }
-];
-export function checkSignature(name){
-  if(!name) return null;
-  const low = name.toLowerCase();
-  for(const s of signatures){
-    if(low.includes(s.pattern)) return s;
+  { id: 'TROJAN-1', pattern: 'cmd.exe /c', type: 'TROJAN', severity: 'CRITICAL' },
+  { id: 'TROJAN-2', pattern: 'powershell -enc', type: 'TROJAN', severity: 'CRITICAL' },
+  { id: 'MAL-1', pattern: 'eval(base64_decode', type: 'MALWARE', severity: 'HIGH' },
+  { id: 'XSS-1', pattern: '<script>alert', type: 'XSS', severity: 'MEDIUM' }
+]
+
+export function checkSignature(payload) {
+  const content = JSON.stringify(payload).toLowerCase()
+  for (const sig of signatures) {
+    if (content.includes(sig.pattern.toLowerCase())) {
+      return { detected: true, ...sig, match: sig.pattern, method: 'SIGNATURE_MATCHING' }
+    }
   }
-  return null;
+  return { detected: false }
+}
+
+// for compatibility with my old code
+export function agentlessScan(payload) {
+  return checkSignature(payload)
 }
