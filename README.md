@@ -22,13 +22,6 @@ SentinelMesh is a next-gen cybersecurity mesh that detects malware, phishing lin
 - 🔒 95% detection accuracy
 - 🌐 Fast, lightweight, mobile-friendly
 
-### 🖼️ Screenshots
-![Home Page](https://via.placeholder.com/800x400?text=Add+Screenshot+of+Your+Home+Page)
-![Dashboard](https://via.placeholder.com/800x400?text=Add+Screenshot+of+Dashboard)
-![Scan Result](https://via.placeholder.com/800x400?text=Add+Screenshot+of+Scan+Result)
-
-> Replace placeholder with real screenshots from your live link
-
 ### 🛠️ Tech Stack
 - Frontend: Next.js 14, TypeScript, Tailwind CSS
 - Backend: Node.js, AI/ML Detection Engine
