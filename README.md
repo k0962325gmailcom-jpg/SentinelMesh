@@ -36,7 +36,7 @@ SentinelMesh is a next-gen cybersecurity mesh that detects malware, phishing lin
 
 ### 🚀 How to Run Locally
 ```bash
-git clone https://github.com/your-username/sentinelmesh.git
-cd sentinelmesh
+git clone https://github.com/k0962325gmail-jpg/SentinelMesh.git
+cd SentinelMesh
 npm install
 npm run dev
